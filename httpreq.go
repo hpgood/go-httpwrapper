@@ -122,7 +122,9 @@ func genReqAction(fs FuncSet) func() {
 				}
 
 				if fs.assertTrue(merged) {
-					fmt.Println("assert true", elapsed.Nanoseconds()/int64(time.Millisecond))
+					if fs.RScript.Debug {
+					   fmt.Println("assert true", elapsed.Nanoseconds()/int64(time.Millisecond))
+					}
 					boomer.RecordSuccess(fs.Key, strconv.Itoa(response.StatusCode),
 						elapsed.Nanoseconds()/int64(time.Millisecond), response.ContentLength)
 				} else {
