@@ -1,4 +1,4 @@
-module httpwrapper
+module go-httpwrapper
 
 go 1.14
 
