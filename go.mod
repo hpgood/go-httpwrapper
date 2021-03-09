@@ -1,4 +1,4 @@
-module go-httpwrapper
+module github.com/hpgood/go-httpwrapper
 
 go 1.14
 
