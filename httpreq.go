@@ -5,7 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/myzhan/boomer"
+	"github.com/hpgood/boomer"
 	"io"
 	"io/ioutil"
 	"log"
