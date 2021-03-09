@@ -14,7 +14,7 @@ require (
 	github.com/shirou/gopsutil v3.21.1+incompatible // indirect
 	github.com/spf13/cast v1.3.1
 	github.com/ugorji/go v1.2.3 // indirect
-	github.com/hpgood/goczmq  latest
-	github.com/hpgood/gomq  latest
+	github.com/hpgood/goczmq  v1.0
+	github.com/hpgood/gomq  v1.0
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
