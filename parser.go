@@ -3,7 +3,7 @@ package httpwrapper
 import (
 	"bytes"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/myzhan/boomer"
+	"github.com/hpgood/boomer"
 	"log"
 	"math/rand"
 	"strings"
