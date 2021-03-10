@@ -10,7 +10,11 @@ import (
 	"github.com/hpgood/boomer"
 	httpwrapper "github.com/hpgood/go-httpwrapper"
 )
+var config string
 
+func init() {
+    flag.StringVar(&config,"data","test.json","--data=test.json 测试配置文件")
+}
 //loadConfig loadConfig
 func loadConfig(name string) (string,error) {
 	_, err := os.Stat(name)
@@ -28,9 +32,9 @@ func loadConfig(name string) (string,error) {
 }
 
 func main() {
-    config:=""
+  
     flag.Parse()
-    flag.StringVar(&config,"data","test.json","--data=test.json 测试配置文件")
+    
     log.Printf("配置文件 --data=%s\n",config)
 	start := time.Now()
     templateJSONStr,err:=loadConfig(config)
