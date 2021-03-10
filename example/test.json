@@ -1,0 +1,49 @@
+{
+    "debug": false,
+    "domain": "http://192.168.6.30:30806",
+    "header":{},
+    "declare": ["{{ $sessionId := getSid }}"],
+    "init_variables": {
+        "roomId": 1001,
+        "sessionId": "{{ $sessionId }}",
+        "ids": "{{ $sessionId }}"
+    },
+    "running_variables": {
+    	"tid": "{{ getRandomId 5000 }}",
+			"itemID": "{{ getRandomId 5000 }}"
+    },
+    "func_set": [
+        {
+            "key": "hello",
+            "method": "GET",
+            "url": "/hello",
+            "body": "",
+            "validator": "{{  (eq .http_status_code 200) }}"
+        },
+				{
+					"key": "world",
+					"method": "GET",
+					"url": "/world",
+					"body": "",
+					"validator": "{{   (eq .http_status_code 200)  }}"
+			  },
+				{
+					"key": "item",
+					"method": "GET",
+					"url": "/item?id={{ .itemID }}",
+					"body": "",
+					"validator": "{{  (eq .http_status_code 200) }}"
+			  },
+        {
+            "key": "login",
+            "method": "POST",
+            "header":{
+               "Cookie": "{{ .tid }}",
+               "Content-Type": "application/json"
+            },
+            "url": "/login",
+            "body": "{\"username\":\"admin\", \"password\":\"123\"}",
+            "validator": "{{  (eq .http_status_code 200)  }}"
+        }
+    ]
+}
