@@ -6,7 +6,9 @@ Locust worker节点,go 实现的版本
   `go build`
 
 * 运行
-
+  
+  配置好 test.json的测试内容。
+  
   `go-node.exe`
 或
   `go-node.exe --data=test.json --master-host=localhost --master-port=5557` 
