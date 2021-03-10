@@ -4,15 +4,15 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/hpgood/boomer"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
-	"strconv"
 	"time"
+
+	"github.com/hpgood/boomer"
+	jsoniter "github.com/json-iterator/go"
 )
 
 var client *http.Client
@@ -95,7 +95,7 @@ func genReqAction(fs FuncSet) func() {
 			if verbose {
 				log.Printf("%v\n", err)
 			}
-			boomer.RecordFailure("http", "error", 0.0, err.Error())
+			boomer.RecordFailure(fs.Method, fs.Key, 0.0, err.Error())
 		} else {
 
 			body, err := ioutil.ReadAll(response.Body)
@@ -125,10 +125,10 @@ func genReqAction(fs FuncSet) func() {
 					if fs.RScript.Debug {
 					   fmt.Println("assert true", elapsed.Nanoseconds()/int64(time.Millisecond))
 					}
-					boomer.RecordSuccess(fs.Key, strconv.Itoa(response.StatusCode),
-						elapsed.Nanoseconds()/int64(time.Millisecond), response.ContentLength)
+					boomer.RecordSuccess(fs.Method,fs.Key,
+					elapsed.Nanoseconds()/int64(time.Millisecond), response.ContentLength)
 				} else {
-					boomer.RecordFailure("assert failed", fs.Key, elapsed.Nanoseconds()/int64(time.Millisecond), "")
+					boomer.RecordFailure(fs.Method, fs.Key, elapsed.Nanoseconds()/int64(time.Millisecond), "assert failed")
 				}
 
 			}
