@@ -2,13 +2,15 @@ package httpwrapper
 
 import (
 	"bytes"
-	jsoniter "github.com/json-iterator/go"
-	"github.com/hpgood/boomer"
+	"fmt"
 	"log"
 	"math/rand"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/hpgood/boomer"
+	jsoniter "github.com/json-iterator/go"
 )
 
 const (
@@ -69,12 +71,44 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func (rs *RunScript) genVariables() Variables {
+// genDecareVariables 声明全局变量
+func (rs *RunScript) genDecareVariables() Variables {
 	varsBytes, _ := jsoniter.Marshal(rs.Variables)
-	t := template.Must(template.New("Variables").Funcs(TemplateFunc).Parse(string(varsBytes)))
+	vars:=string(varsBytes)
+	fmt.Println(vars)
+	t := template.Must(template.New("Variables").Funcs(TemplateFunc).Parse(vars))
 	var tmpBytes bytes.Buffer
 	_ = t.Execute(&tmpBytes, nil)
 	var variables Variables
+	fmt.Println(tmpBytes.String())
+	decoder := jsoniter.NewDecoder(strings.NewReader(tmpBytes.String()))
+	decoder.UseNumber()
+	err := decoder.Decode(&variables)
+	if err != nil {
+		log.Fatal(err)
+	}
+	merged := make(map[string]interface{})
+	for k, v := range variables.InitVariables {
+		merged[k] = v
+	}
+	for k, v := range variables.RunningVariables {
+		merged[k] = v
+	}
+
+	variables.MergedVariables = merged
+
+	return variables
+}
+
+func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
+	varsBytes, _ := jsoniter.Marshal(rs.Variables)
+	vars:=string(varsBytes)
+	// fmt.Println(vars)
+	t := template.Must(template.New("Variables").Funcs(TemplateFunc).Parse(vars))
+	var tmpBytes bytes.Buffer
+	_ = t.Execute(&tmpBytes, ctx)
+	var variables Variables
+	// fmt.Println(tmpBytes.String())
 	decoder := jsoniter.NewDecoder(strings.NewReader(tmpBytes.String()))
 	decoder.UseNumber()
 	err := decoder.Decode(&variables)
@@ -206,6 +240,7 @@ func GetTaskList(baseJson string) []*boomer.Task {
 	rs := RunScript{}
 	err := jsoniter.Unmarshal([]byte(baseJson), &rs)
 	if err != nil {
+		
 		panic(err)
 	}
 	rs.init()

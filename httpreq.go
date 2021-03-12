@@ -35,17 +35,21 @@ func init() {
 	}
 }
 
-func genReqAction(fs FuncSet) func() {
-	variables := fs.RScript.genVariables()
+func genReqAction(fs FuncSet) func(*boomer.RunContext) {
+	
+	variables := fs.RScript.genVariables(boomer.NewRunContext())
 	initUrl := fs.getURL(variables.InitVariables)
 	initBody := fs.getBody(variables.InitVariables)
 	initHeaders := fs.getHeaders(variables.InitVariables)
 
-	action := func() {
+	action := func( ctx *boomer.RunContext) {
 		var url string
 		var body string
 		var headers map[string]string
-		runVariables := fs.RScript.genVariables()
+		runVariables := fs.RScript.genVariables(ctx)
+		//running context
+		// runVariables.MergedVariables["ctx"]=ctx
+
 		if !fs.RScript.WithInitVar && !fs.RScript.WithRunningVar {
 			url = fs.Parsed.Url.ParsedValue
 			body = fs.Parsed.Body.ParsedValue
