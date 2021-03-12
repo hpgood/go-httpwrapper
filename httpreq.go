@@ -34,7 +34,7 @@ func init() {
 		Timeout:   time.Duration(10) * time.Second,
 	}
 }
-
+// genReqAction genReqAction
 func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 	
 	variables := fs.RScript.genVariables(boomer.NewRunContext())
