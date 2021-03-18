@@ -36,6 +36,11 @@ type RunScript struct {
 	WithRunningVar bool
 }
 
+type StoreKV struct{
+	Name  string  `json:"name"`
+	Value string 	`json:"value"`
+}
+
 type FuncSet struct {
 	Key         string            `json:"key"`
 	Method      string            `json:"method"`
@@ -44,6 +49,8 @@ type FuncSet struct {
 	Header      map[string]string `json:"header"`
 	Probability int               `json:"probability"`
 	Validator   string            `json:"validator"`
+	Condition   string            `json:"condition"` //运行条件
+	Store       map[string]string `json:"store"`     //保存的内容
 	Parsed      struct {
 		Body   StrComponent
 		Url    StrComponent
@@ -71,48 +78,61 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-// genDecareVariables 声明全局变量
-func (rs *RunScript) genDecareVariables() Variables {
-	varsBytes, _ := jsoniter.Marshal(rs.Variables)
-	vars:=string(varsBytes)
-	fmt.Println(vars)
-	t := template.Must(template.New("Variables").Funcs(TemplateFunc).Parse(vars))
-	var tmpBytes bytes.Buffer
-	_ = t.Execute(&tmpBytes, nil)
-	var variables Variables
-	fmt.Println(tmpBytes.String())
-	decoder := jsoniter.NewDecoder(strings.NewReader(tmpBytes.String()))
-	decoder.UseNumber()
-	err := decoder.Decode(&variables)
-	if err != nil {
-		log.Fatal(err)
-	}
-	merged := make(map[string]interface{})
-	for k, v := range variables.InitVariables {
-		merged[k] = v
-	}
-	for k, v := range variables.RunningVariables {
-		merged[k] = v
-	}
-
-	variables.MergedVariables = merged
-
-	return variables
+func dumpContext(ctx *boomer.RunContext){
+	fmt.Printf("ctx=\n")
+	fmt.Printf("  {\n")
+	fmt.Printf("    .ID=%d\n",ctx.ID)
+	fmt.Printf("    .RunSeq=%d\n",ctx.RunSeq)
+	fmt.Printf("    .RspHead=%s\n",ctx.RspHead)
+	fmt.Printf("    .RspCookie=%s\n",ctx.RspCookie)
+	fmt.Printf("    .RspStatus=%d\n",ctx.RspStatus)
+	fmt.Printf("    .RspJSON=%s\n",ctx.RspJSON)
+	fmt.Printf("    .RspText=%s\n",ctx.RspText)
+	fmt.Printf("    .Store=%s\n",ctx.Store)
+	fmt.Printf("  }\n")
+}
+func dumpVars(dumpVars string){
+	dumpVars=strings.Join(strings.Split(dumpVars,","),",\n")
+	fmt.Println(dumpVars)
 }
 
 func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
 	varsBytes, _ := jsoniter.Marshal(rs.Variables)
-	vars:=string(varsBytes)
+	vars := string(varsBytes)
 	// fmt.Println(vars)
-	t := template.Must(template.New("Variables").Funcs(TemplateFunc).Parse(vars))
+	//template.Must()
+	t,tempError := template.New("Variables").Funcs(TemplateFunc).Parse(vars)
+	if tempError!=nil{
+		log.Println("@genVariables wrong template:")
+		fmt.Println(vars)
+		log.Fatal(tempError)
+	}
 	var tmpBytes bytes.Buffer
-	_ = t.Execute(&tmpBytes, ctx)
+	errExec := t.Execute(&tmpBytes, ctx)
+	if errExec!=nil{
+		log.Println("@genVariables vars:",ctx)
+		dumpContext(ctx)
+		fmt.Println("@genVariables template:")
+		dumpVars(vars)
+		log.Println("@genVariables err:",errExec.Error())
+		fmt.Println(vars)
+	}
 	var variables Variables
-	// fmt.Println(tmpBytes.String())
-	decoder := jsoniter.NewDecoder(strings.NewReader(tmpBytes.String()))
+	var tempStr=tmpBytes.String()
+	// log.Println("@genVariables JSON:",vars)
+	tempStr=strings.ReplaceAll(tempStr,"\"####\"","{}")
+	tempStr=strings.ReplaceAll(tempStr,"\"##","")
+	tempStr=strings.ReplaceAll(tempStr,"##\"","")
+
+	
+
+	decoder := jsoniter.NewDecoder(strings.NewReader(tempStr))
 	decoder.UseNumber()
 	err := decoder.Decode(&variables)
+	// fmt.Println("next")
 	if err != nil {
+		log.Println("@genVariables variables:",variables)
+		log.Println("@genVariables errJSON:",vars)
 		log.Fatal(err)
 	}
 	merged := make(map[string]interface{})
@@ -147,7 +167,7 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 		return
 	}
 
-	parsedUrl := fs.getURL(rs.InitVariables)
+	parsedUrl := fs.getURLWithWarn(rs.InitVariables,false)
 	if strings.Contains(parsedUrl, NoValue) {
 		fs.Parsed.Url.OriWithRunningVar = true
 	}
@@ -156,7 +176,7 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 		fs.Parsed.Url.OriWithInitVar = true
 	}
 
-	parsedBody := fs.getBody(rs.InitVariables)
+	parsedBody := fs.getBodyWithWarn(rs.InitVariables,false)
 	if strings.Contains(parsedBody, NoValue) {
 		fs.Parsed.Body.OriWithRunningVar = true
 	}
@@ -164,7 +184,7 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 	if strings.Contains(parsedBody, NoValue) {
 		fs.Parsed.Body.OriWithInitVar = true
 	}
-	parsedHeader := fs.getHeaders(rs.InitVariables)
+	parsedHeader := fs.getHeadersWithWarn(rs.InitVariables,false)
 	for _, v := range parsedHeader {
 		if strings.Contains(v, NoValue) {
 			fs.Parsed.Header.OriWithRunningVar = true
@@ -180,44 +200,86 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 }
 
 func (fs *FuncSet) getURL(v Variable) string {
-	tmpl, err := template.New("URL").Parse(fs.Url)
+	return fs.getURLWithWarn(v,true)
+}
+func (fs *FuncSet) getURLWithWarn(v Variable,warn bool) string {
+	tmpl, err := template.New("URL").Funcs(TemplateFunc).Parse(fs.Url)
 	if err != nil {
+		log.Println("@getURL error #1 parse:",fs.Url)
 		panic(err)
 	}
 	var tmplBytes bytes.Buffer
 	err = tmpl.Execute(&tmplBytes, v)
 	if err != nil {
-		panic(err)
+		if warn{
+			if fs.RScript.Debug{
+				log.Println("@getURL #2 vars:",v)
+				log.Println("@getURL parse:",fs.Url)
+			}
+		}
+		// panic(err)
+		return NoValue
 	}
 	return tmplBytes.String()
 }
 
 func (fs *FuncSet) getBody(v Variable) string {
-	tmpl, err := template.New("Body").Parse(fs.Body)
+	return fs.getBodyWithWarn(v,true)
+}
+func (fs *FuncSet) getBodyWithWarn(v Variable,warn bool) string {
+	//.Option(fmt.Sprintf("missingkey=%s",NoValue))
+	tmpl, err := template.New("Body").Funcs(TemplateFunc).Parse(fs.Body)
 	if err != nil {
+		log.Println("@getBody parse:",fs.Body)
 		panic(err)
 	}
 	var tmplBytes bytes.Buffer
 	err = tmpl.Execute(&tmplBytes, v)
 	if err != nil {
-		panic(err)
+		if warn{
+			if fs.RScript.Debug{
+				log.Println("@getBody #2 var:",v)
+				log.Println("@getBody parse:",fs.Body)
+			}
+			log.Println("@getBody err:",err.Error())
+		}
+
+		// panic(err)
+		return NoValue
 	}
 	return tmplBytes.String()
 }
 
 func (fs *FuncSet) getHeaders(v Variable) (hmap map[string]string) {
+	return fs.getHeadersWithWarn(v,true)
+}
+func (fs *FuncSet) getHeadersWithWarn(v Variable,warn bool) (hmap map[string]string) {
 	headerBytes, err := jsoniter.Marshal(fs.Header)
-	tmpl, err := template.New("Header").Parse(string(headerBytes))
+	tmpl, err := template.New("Header").Funcs(TemplateFunc).Parse(string(headerBytes))
 	if err != nil {
+		log.Println("@getHeaders #0 parse:",string(headerBytes))
 		panic(err)
 	}
 	var tmplBytes bytes.Buffer
 	err = tmpl.Execute(&tmplBytes, v)
 	if err != nil {
-		panic(err)
+		if warn{
+			if fs.RScript.Debug{
+				log.Println("@getHeaders vars:",v)
+				log.Println("@getHeaders parse:",string(headerBytes))
+			}
+		}
+		// if warn{
+		// 	panic(err)
+		// }
+
+		hmap=make(map[string]string)
+		hmap["_"]=NoValue
+		return hmap
 	}
 	err = jsoniter.Unmarshal(tmplBytes.Bytes(), &hmap)
 	if err != nil {
+		log.Println("@getHeaders #2 parse:",fs.Header)
 		panic(err)
 	}
 	return hmap
@@ -231,16 +293,91 @@ func (fs *FuncSet) assertTrue(mapping map[string]interface{}) bool {
 	//}
 	err := t.Execute(&bs, mapping)
 	if err != nil {
+		log.Println("@assertTrue Validator:",fs.Validator)
 		panic(err)
 	}
 	return "true" == bs.String()
+}
+// assertConditionTrue 运行条件
+func (fs *FuncSet) assertConditionTrue(mapping map[string]interface{}) bool {
+	if len(fs.Condition)==0{
+		return true
+	}
+	t := template.Must(template.New("Validator").Funcs(TemplateFunc).Parse(fs.Condition))
+	var bs bytes.Buffer
+	err := t.Execute(&bs, mapping)
+	if err != nil {
+		if fs.RScript.Debug{
+			log.Println("@assertConditionTrue Condition ",fs.Condition)
+			log.Println("@assertConditionTrue error ",err.Error())
+		}
+		return false
+		// panic(err)
+	}
+	return "true" == bs.String()
+}
+// storeData 保存数据
+func (fs *FuncSet) storeData(ctx *boomer.RunContext,mapping map[string]interface{})  {
+	if len(fs.Store)==0{
+		return  
+	}
+
+	varsBytes, _ := jsoniter.Marshal(fs.Store)
+	vars := string(varsBytes)
+	// fmt.Println(vars)
+	//template.Must()
+	t,tempError := template.New("store-"+fs.Key).Funcs(TemplateFunc).Parse(vars)
+	if tempError!=nil{
+		if fs.RScript.Debug{
+			log.Println("@storeData wrong template:")
+			fmt.Println(vars)
+			log.Println("@storeData error:",tempError.Error())
+		}
+		return
+	}
+	//把ctx的转换过去
+
+	mapping["ctx"]=ctx
+
+	var tmpBytes bytes.Buffer
+	errTemp := t.Execute(&tmpBytes, mapping)
+	if errTemp!=nil{
+		if fs.RScript.Debug{
+			log.Println("@storeData template:",vars)
+			log.Println("@storeData err:",errTemp.Error())
+		}
+		log.Println("@storeData vars:",mapping)
+		log.Fatal(errTemp)
+	}
+
+	var variables = make(map[string]string)
+	var tempStr=tmpBytes.String()
+
+	decoder := jsoniter.NewDecoder(strings.NewReader(tempStr))
+	decoder.UseNumber()
+	err := decoder.Decode(&variables)
+ 
+	if err != nil {
+		if fs.RScript.Debug{
+			log.Println("@storeData variables:",variables)
+			log.Println("@storeData err:",err.Error())
+		}
+		log.Println("@storeData errJSON:",tempStr)
+		log.Fatal(err)
+	}
+	for k, v := range variables {
+		ctx.Store[k] = v
+		if fs.RScript.Debug{
+			log.Println("store save:",k,v)
+		}
+	}
 }
 
 func GetTaskList(baseJson string) []*boomer.Task {
 	rs := RunScript{}
 	err := jsoniter.Unmarshal([]byte(baseJson), &rs)
 	if err != nil {
-		
+		log.Println("@GetTaskList baseJson:",baseJson)
 		panic(err)
 	}
 	rs.init()
