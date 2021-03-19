@@ -106,6 +106,13 @@ func dumpStringArr(key string,arr map[string]interface{}){
 	}
 	fmt.Printf("  }\n")
 }
+func dumpStringMap(key string,arr map[string]string){
+	fmt.Printf("  \"%s\":{\n",key)
+	for k,v:=range(arr){
+		fmt.Printf("      \"%s\":%v \n",k,v)
+	}
+	fmt.Printf("  }\n")
+}
 func dumpVars(dumpVars string){
 	dumpVars=strings.Join(strings.Split(dumpVars,","),",\n  ")
 	dumpVars=strings.Join(strings.Split(dumpVars,":{"),":{\n  ")
@@ -260,8 +267,10 @@ func (fs *FuncSet) getBodyWithWarn(v Variable,warn bool) string {
 	if err != nil {
 		if warn{
 			if fs.RScript.Debug{
-				log.Println("@getBody #2 var:",v)
-				log.Println("@getBody parse:",fs.Body)
+				log.Println("@getBody #2 var:")
+				dumpStringArr("Variable",v)
+				log.Println("@getBody parse:")
+				fmt.Println(fs.Body)
 			}
 			log.Println("@getBody err:",err.Error())
 		}
@@ -287,8 +296,10 @@ func (fs *FuncSet) getHeadersWithWarn(v Variable,warn bool) (hmap map[string]str
 	if err != nil {
 		if warn{
 			if fs.RScript.Debug{
-				log.Println("@getHeaders vars:",v)
-				log.Println("@getHeaders parse:",string(headerBytes))
+				log.Println("@getHeaders vars:")
+				dumpStringArr("Variable",v)
+				log.Println("@getHeaders parse:")
+				fmt.Println(string(headerBytes))
 			}
 		}
 		// if warn{
@@ -301,7 +312,8 @@ func (fs *FuncSet) getHeadersWithWarn(v Variable,warn bool) (hmap map[string]str
 	}
 	err = jsoniter.Unmarshal(tmplBytes.Bytes(), &hmap)
 	if err != nil {
-		log.Println("@getHeaders #2 parse:",fs.Header)
+		log.Println("@getHeaders #2 parse:")
+		dumpStringMap("Header",fs.Header)
 		panic(err)
 	}
 	return hmap
@@ -315,7 +327,8 @@ func (fs *FuncSet) assertTrue(mapping map[string]interface{}) bool {
 	//}
 	err := t.Execute(&bs, mapping)
 	if err != nil {
-		log.Println("@assertTrue Validator:",fs.Validator)
+		log.Println("@assertTrue Validator:")
+		dumpVars(fs.Validator)
 		panic(err)
 	}
 	return "true" == bs.String()
@@ -330,7 +343,8 @@ func (fs *FuncSet) assertConditionTrue(mapping map[string]interface{}) bool {
 	err := t.Execute(&bs, mapping)
 	if err != nil {
 		if fs.RScript.Debug{
-			log.Println("@assertConditionTrue Condition ",fs.Condition)
+			log.Println("@assertConditionTrue Condition:")
+			dumpVars(fs.Condition)
 			log.Println("@assertConditionTrue error ",err.Error())
 		}
 		return false
@@ -352,7 +366,7 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext,mapping map[string]interface
 	if tempError!=nil{
 		if fs.RScript.Debug{
 			log.Println("@storeData wrong template:")
-			fmt.Println(vars)
+			dumpVars(vars)
 			log.Println("@storeData error:",tempError.Error())
 		}
 		return
@@ -381,7 +395,8 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext,mapping map[string]interface
  
 	if err != nil {
 		if fs.RScript.Debug{
-			log.Println("@storeData variables:",variables)
+			log.Println("@storeData variables:")
+			dumpStringMap("variables",variables)
 			log.Println("@storeData err:",err.Error())
 		}
 		log.Println("@storeData errJSON:",tempStr)
