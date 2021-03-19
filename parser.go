@@ -91,8 +91,26 @@ func dumpContext(ctx *boomer.RunContext){
 	fmt.Printf("    .Store=%s\n",ctx.Store)
 	fmt.Printf("  }\n")
 }
+
+func dumpVarsData(vars *Variables){
+
+	fmt.Printf("Variables:\n  \"Declare\":%s\n",strings.Join(vars.Declare,","))
+	dumpStringArr("InitVariables",vars.InitVariables)
+	dumpStringArr("RunningVariables",vars.RunningVariables)
+	dumpStringArr("MergedVariables",vars.MergedVariables)
+}
+func dumpStringArr(key string,arr map[string]interface{}){
+	fmt.Printf("  \"%s\":{\n",key)
+	for k,v:=range(arr){
+		fmt.Printf("      \"%s\":%v \n",k,v)
+	}
+	fmt.Printf("  }\n")
+}
 func dumpVars(dumpVars string){
-	dumpVars=strings.Join(strings.Split(dumpVars,","),",\n")
+	dumpVars=strings.Join(strings.Split(dumpVars,","),",\n  ")
+	dumpVars=strings.Join(strings.Split(dumpVars,":{"),":{\n  ")
+	dumpVars=strings.Join(strings.Split(dumpVars,":["),":[\n    ")
+	dumpVars=strings.Join(strings.Split(dumpVars,"],"),"\n  ],")
 	fmt.Println(dumpVars)
 }
 
@@ -110,12 +128,12 @@ func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
 	var tmpBytes bytes.Buffer
 	errExec := t.Execute(&tmpBytes, ctx)
 	if errExec!=nil{
-		log.Println("@genVariables vars:",ctx)
+		log.Println("@genVariables vars:")
 		dumpContext(ctx)
 		fmt.Println("@genVariables template:")
 		dumpVars(vars)
 		log.Println("@genVariables err:",errExec.Error())
-		fmt.Println(vars)
+		dumpVars(vars)
 	}
 	var variables Variables
 	var tempStr=tmpBytes.String()
@@ -131,8 +149,10 @@ func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
 	err := decoder.Decode(&variables)
 	// fmt.Println("next")
 	if err != nil {
-		log.Println("@genVariables variables:",variables)
-		log.Println("@genVariables errJSON:",vars)
+		log.Println("@genVariables variables:")
+		dumpVarsData(&variables)
+		log.Println("@genVariables errJSON:")
+		dumpVars(vars)
 		log.Fatal(err)
 	}
 	merged := make(map[string]interface{})
@@ -213,8 +233,10 @@ func (fs *FuncSet) getURLWithWarn(v Variable,warn bool) string {
 	if err != nil {
 		if warn{
 			if fs.RScript.Debug{
-				log.Println("@getURL #2 vars:",v)
-				log.Println("@getURL parse:",fs.Url)
+				log.Println("@getURL #2 vars:")
+				dumpStringArr("Variable",v)
+				log.Println("@getURL parse:")
+				fmt.Println(fs.Url)
 			}
 		}
 		// panic(err)
