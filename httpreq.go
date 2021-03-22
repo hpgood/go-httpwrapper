@@ -82,8 +82,12 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			}
 		}
 
+		domain:=fs.RScript.Domain
+		if strings.Contains(domain,"{{") && strings.Contains(domain,"}}") {
+			domain=fs.getDomain(ctx)
+		}
 		
-		url = fmt.Sprintf("%s%s", fs.RScript.Domain, url)
+		url = fmt.Sprintf("%s%s", domain, url)
  
 		ctx.RspHead="{}"   //head
 		ctx.RspCookie="{}" //cookie

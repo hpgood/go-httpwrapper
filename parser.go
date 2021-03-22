@@ -79,17 +79,7 @@ func init() {
 }
 
 func dumpContext(ctx *boomer.RunContext){
-	fmt.Printf("ctx=\n")
-	fmt.Printf("  {\n")
-	fmt.Printf("    .ID=%d\n",ctx.ID)
-	fmt.Printf("    .RunSeq=%d\n",ctx.RunSeq)
-	fmt.Printf("    .RspHead=%s\n",ctx.RspHead)
-	fmt.Printf("    .RspCookie=%s\n",ctx.RspCookie)
-	fmt.Printf("    .RspStatus=%d\n",ctx.RspStatus)
-	fmt.Printf("    .RspJSON=%s\n",ctx.RspJSON)
-	fmt.Printf("    .RspText=%s\n",ctx.RspText)
-	fmt.Printf("    .Store=%s\n",ctx.Store)
-	fmt.Printf("  }\n")
+	fmt.Println(ctx.ToString())
 }
 
 func dumpVarsData(vars *Variables){
@@ -255,6 +245,33 @@ func (fs *FuncSet) getURLWithWarn(v Variable,warn bool) string {
 func (fs *FuncSet) getBody(v Variable) string {
 	return fs.getBodyWithWarn(v,true)
 }
+
+func (fs *FuncSet) getDomain(ctx * boomer.RunContext) string {
+	//.Option(fmt.Sprintf("missingkey=%s",NoValue))
+	tmpl, err := template.New("Domain").Funcs(TemplateFunc).Parse(fs.RScript.Domain)
+	if err != nil {
+		log.Println("@getDomain parse:",fs.Body)
+		panic(err)
+	}
+	var tmplBytes bytes.Buffer
+	err = tmpl.Execute(&tmplBytes, ctx)
+	if err != nil {
+		// if warn{
+			if fs.RScript.Debug{
+				log.Println("@getDomain #2 var:")
+				dumpContext(ctx)
+				log.Println("@getDomain parse:")
+				fmt.Println(fs.Body)
+			}
+			log.Println("@getDomain err:",err.Error())
+		// }
+
+		// panic(err)
+		return NoValue
+	}
+	return tmplBytes.String()
+}
+
 func (fs *FuncSet) getBodyWithWarn(v Variable,warn bool) string {
 	//.Option(fmt.Sprintf("missingkey=%s",NoValue))
 	tmpl, err := template.New("Body").Funcs(TemplateFunc).Parse(fs.Body)
