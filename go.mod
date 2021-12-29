@@ -8,7 +8,7 @@ require (
 	github.com/ghodss/yaml v1.0.0
 	github.com/go-ole/go-ole v1.2.5 // indirect
 	github.com/google/uuid v1.2.0 // indirect
-	github.com/hpgood/boomer v0.0.0-20210312044255-2142acc577eb
+	github.com/hpgood/boomer v1.0.4
 	github.com/hpgood/gomq v1.0.1
 	github.com/hpgood/gomq/zmtp v0.0.0-20210309102039-81d051b62f9c // indirect
 	github.com/json-iterator/go v1.1.10
@@ -29,3 +29,5 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
+
+// replace github.com/hpgood/boomer => ../boomer
