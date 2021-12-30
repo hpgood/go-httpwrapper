@@ -34,6 +34,7 @@ type RunScript struct {
 	FuncSet        []FuncSet `json:"func_set"`
 	WithInitVar    bool
 	WithRunningVar bool
+	PreParsed      bool //首次解析
 }
 
 type StoreKV struct {
@@ -44,6 +45,7 @@ type StoreKV struct {
 type FuncSet struct {
 	Name        string            `json:"name"` //名称
 	Key         string            `json:"key"`
+	Debug       bool              `json:"debug"`
 	Method      string            `json:"method"`
 	Body        string            `json:"body"`
 	Url         string            `json:"url"`
@@ -153,8 +155,6 @@ func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
 	}
 	merged := make(map[string]interface{})
 
-	merged["ID"] = ctx.ID
-
 	for k, v := range variables.InitVariables {
 		merged[k] = v
 	}
@@ -162,6 +162,8 @@ func (rs *RunScript) genVariables(ctx *boomer.RunContext) Variables {
 	for k, v := range variables.RunningVariables {
 		merged[k] = v
 	}
+
+	merged["ID"] = ctx.ID //覆盖 旧的ID
 
 	variables.MergedVariables = merged
 
@@ -284,7 +286,12 @@ func (fs *FuncSet) getBodyWithWarn(v Variable, warn bool) string {
 	}
 	var tmplBytes bytes.Buffer
 	if warn {
-		v["ID"] = 1 //跳过警告
+		if fs.RScript.PreParsed {
+			if _, has := v["ID"]; !has {
+				v["ID"] = -1 //跳过警告
+			}
+		}
+
 	}
 	err = tmpl.Execute(&tmplBytes, v)
 	if err != nil {
@@ -295,7 +302,10 @@ func (fs *FuncSet) getBodyWithWarn(v Variable, warn bool) string {
 				log.Println("@getBody parse:")
 				fmt.Println(fs.Body)
 			}
-			log.Println("@getBody err:", err.Error())
+			// log.Println("@getBody PreParsed:", fs.RScript.PreParsed)
+			if !fs.RScript.PreParsed {
+				log.Println("@getBody err:", err.Error())
+			}
 		}
 
 		// panic(err)
@@ -382,14 +392,14 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext, mapping map[string]interfac
 	if len(fs.Store) == 0 {
 		return
 	}
-
+	debug := fs.RScript.Debug || fs.Debug
 	varsBytes, _ := jsoniter.Marshal(fs.Store)
 	vars := string(varsBytes)
 	// fmt.Println(vars)
 	//template.Must()
 	t, tempError := template.New("store-" + fs.Key).Funcs(TemplateFunc).Parse(vars)
 	if tempError != nil {
-		if fs.RScript.Debug {
+		if debug {
 			log.Println("@storeData wrong template:")
 			dumpVars(vars)
 			log.Println("@storeData error:", tempError.Error())
@@ -403,7 +413,7 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext, mapping map[string]interfac
 	var tmpBytes bytes.Buffer
 	errTemp := t.Execute(&tmpBytes, mapping)
 	if errTemp != nil {
-		if fs.RScript.Debug {
+		if debug {
 			log.Println("@storeData template:", vars)
 			log.Println("@storeData err:", errTemp.Error())
 		}
@@ -419,7 +429,7 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext, mapping map[string]interfac
 	err := decoder.Decode(&variables)
 
 	if err != nil {
-		if fs.RScript.Debug {
+		if debug {
 			log.Println("@storeData variables:")
 			dumpStringMap("variables", variables)
 			log.Println("@storeData err:", err.Error())
@@ -429,7 +439,7 @@ func (fs *FuncSet) storeData(ctx *boomer.RunContext, mapping map[string]interfac
 	}
 	for k, v := range variables {
 		ctx.Store[k] = v
-		if fs.RScript.Debug {
+		if debug {
 			log.Println("store save:", k, v)
 		}
 	}
@@ -443,6 +453,9 @@ func GetTaskList(baseJson string) []*boomer.Task {
 		panic(err)
 	}
 	rs.init()
+	// log.Println("@GetTaskList GetTaskList ")
+	rs.PreParsed = true
+
 	var tasks []*boomer.Task
 	for _, req := range rs.FuncSet {
 		req.parseVars(rs)
@@ -454,5 +467,6 @@ func GetTaskList(baseJson string) []*boomer.Task {
 		}
 		tasks = append(tasks, &task)
 	}
+	rs.PreParsed = false
 	return tasks
 }

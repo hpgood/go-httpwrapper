@@ -21,6 +21,7 @@ require (
 	github.com/shirou/gopsutil v3.21.2+incompatible // indirect
 	github.com/spf13/cast v1.3.1
 	github.com/stretchr/testify v1.7.0 // indirect
+	github.com/tidwall/gjson v1.12.1
 	github.com/tklauser/go-sysconf v0.3.4 // indirect
 	github.com/ugorji/go v1.2.4 // indirect
 	github.com/zeromq/goczmq v4.1.0+incompatible // indirect

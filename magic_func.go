@@ -3,10 +3,12 @@ package httpwrapper
 import (
 	"math/rand"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/hpgood/boomer"
 	"github.com/spf13/cast"
+	"github.com/tidwall/gjson"
 )
 
 var TemplateFunc = map[string]interface{}{
@@ -16,12 +18,40 @@ var TemplateFunc = map[string]interface{}{
 	"toString":    cast.ToString,
 	"mapValue":    MapValue,
 	"storeValue":  StoreValue,
+	"sv":          StoreValue,
+	"gson":        Gson,
+	"gsonArray":   GsonStringArr,
+	"joins":       JoinS,
+	"join":        Join,
 	"sleep":       Sleep,
 }
 
 func Sleep(n int) string {
-	time.Sleep(time.Millisecond * time.Duration(n))
+	if n > 0 {
+		time.Sleep(time.Millisecond * time.Duration(n))
+	}
 	return ""
+}
+func Gson(ctx *boomer.RunContext, p string) string {
+	return gjson.Get(ctx.RspJSON, p).String()
+}
+
+// func GsonResult(ctx *boomer.RunContext, p string) gjson.Result {
+// 	return gjson.Get(ctx.RspJSON, p)
+// }
+func GsonStringArr(ctx *boomer.RunContext, p string) []string {
+	arr := gjson.Get(ctx.RspJSON, p).Array()
+	ret := []string{}
+	for _, v := range arr {
+		ret = append(ret, v.String())
+	}
+	return ret
+}
+func JoinS(arr []string) string {
+	return strings.Join(arr, ",")
+}
+func Join(arr []string, s string) string {
+	return strings.Join(arr, s)
 }
 
 // StoreValue

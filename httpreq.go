@@ -45,16 +45,19 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 	initHeaders := fs.getHeaders(variables.InitVariables)
 
 	action := func(ctx *boomer.RunContext) {
+		// log.Println("@genReqAction run ID=", ctx.ID)
 		var url string
 		var body string
 		var headers map[string]string
+		var debug = fs.RScript.Debug || fs.Debug
+		fs.RScript.PreParsed = false
 		runVariables := fs.RScript.genVariables(ctx)
 		runVariables.MergedVariables["ctx"] = ctx
 		//running context
 		// runVariables.MergedVariables["ctx"]=ctx
 
 		if !fs.assertConditionTrue(runVariables.MergedVariables) {
-			if fs.RScript.Debug {
+			if debug {
 				log.Println("assert condition false, ignore request:", fs.Key)
 			}
 			return
@@ -116,7 +119,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			}
 		}
 
-		if fs.RScript.Debug {
+		if debug {
 			if len(fs.Name) > 0 {
 				log.Println(fs.Name)
 			}
@@ -155,7 +158,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 						key := strings.Replace(k, "-", "", -1)
 						// ctx.Data[key]= strings.Join(v,",")
 						head[key] = strings.Join(v, ",")
-						if fs.RScript.Debug {
+						if debug {
 							log.Printf(".rspHead.%s, response header %s=%s\n", key, k, v)
 						}
 						headCount++
@@ -197,7 +200,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 					merged[k] = v
 				}
 
-				if fs.RScript.Debug {
+				if debug {
 					log.Printf("Status Code: %d\n", response.StatusCode)
 					log.Println(string(body))
 
@@ -206,13 +209,14 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 				}
 
 				if fs.assertTrue(merged) {
-					if fs.RScript.Debug {
-						fmt.Println("assert true", elapsed.Nanoseconds()/int64(time.Millisecond))
+					if debug {
+						log.Println("assert true,time=", elapsed.Nanoseconds()/int64(time.Millisecond), "ms")
 					}
 					boomer.RecordSuccess(fs.Method, fs.Key,
 						elapsed.Nanoseconds()/int64(time.Millisecond), response.ContentLength)
 				} else {
-					boomer.RecordFailure(fs.Method, fs.Key, elapsed.Nanoseconds()/int64(time.Millisecond), "assert failed")
+					msg := fmt.Sprintf("assert failed,body:%s", string(body))
+					boomer.RecordFailure(fs.Method, fs.Key, elapsed.Nanoseconds()/int64(time.Millisecond), msg)
 				}
 				//保存数据
 				fs.storeData(ctx, merged)
