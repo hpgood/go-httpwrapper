@@ -47,7 +47,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 	action := func(ctx *boomer.RunContext) {
 		// log.Println("@genReqAction run ID=", ctx.ID)
 		var url string
-		var body string
+		var _body string
 		var headers map[string]string
 		var debug = fs.RScript.Debug || fs.Debug
 		fs.RScript.PreParsed = false
@@ -65,7 +65,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 
 		if !fs.RScript.WithInitVar && !fs.RScript.WithRunningVar {
 			url = fs.Parsed.Url.ParsedValue
-			body = fs.Parsed.Body.ParsedValue
+			_body = fs.Parsed.Body.ParsedValue
 		} else {
 			if !fs.Parsed.Url.OriWithRunningVar {
 				url = initUrl
@@ -74,9 +74,9 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			}
 
 			if !fs.Parsed.Body.OriWithRunningVar {
-				body = initBody
+				_body = initBody
 			} else {
-				body = fs.getBody(runVariables.MergedVariables)
+				_body = fs.getBody(runVariables.MergedVariables)
 			}
 
 			if !fs.Parsed.Header.OriWithRunningVar {
@@ -91,7 +91,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			domain = fs.getDomain(ctx)
 		}
 
-		url = fmt.Sprintf("%s%s", domain, url)
+		fullURL := fmt.Sprintf("%s%s", domain, url)
 
 		ctx.RspHead = "{}"   //head
 		ctx.RspCookie = "{}" //cookie
@@ -102,7 +102,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 		// if verbose {
 		// 	log.Println("body:",body)
 		// }
-		request, err := http.NewRequest(fs.Method, url, bytes.NewBuffer([]byte(body)))
+		request, err := http.NewRequest(fs.Method, fullURL, bytes.NewBuffer([]byte(_body)))
 		if err != nil {
 			log.Fatalf("%v\n", err)
 		}
@@ -137,18 +137,19 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			boomer.RecordFailure(fs.Method, fs.Key, 0.0, err.Error())
 		} else {
 			ctx.RspStatus = response.StatusCode
-			body, err := ioutil.ReadAll(response.Body)
+			retBody, err := ioutil.ReadAll(response.Body)
 			if err != nil {
 				log.Printf("%v\n", err)
 			} else {
 				var res map[string]interface{}
-				errJSON := jsoniter.Unmarshal(body, &res)
+				errJSON := jsoniter.Unmarshal(retBody, &res)
 				res["http_status_code"] = response.StatusCode
 
 				//保存上个接口的数据
 				// ctx.Data["rsp_status_code"] = strconv.Itoa(response.StatusCode)
 
-				ctx.RspText = string(body)
+				retBodyStr := string(retBody)
+				ctx.RspText = retBodyStr
 
 				var head = make(map[string]string)
 				headJSON := "{}"
@@ -172,7 +173,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 				ctx.RspHead = headJSON
 
 				if errJSON == nil {
-					ctx.RspJSON = string(body)
+					ctx.RspJSON = retBodyStr
 				} else {
 					ctx.RspJSON = "{}"
 				}
@@ -202,7 +203,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 
 				if debug {
 					log.Printf("Status Code: %d\n", response.StatusCode)
-					log.Println(string(body))
+					log.Println(retBodyStr)
 
 				} else {
 					io.Copy(ioutil.Discard, response.Body)
@@ -215,7 +216,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 					boomer.RecordSuccess(fs.Method, fs.Key,
 						elapsed.Nanoseconds()/int64(time.Millisecond), response.ContentLength)
 				} else {
-					msg := fmt.Sprintf("assert failed,body:%s", string(body))
+					msg := fmt.Sprintf("assert failed,id:%d,url:%s,data:%s,response:%s", ctx.ID, url, _body, retBodyStr)
 					boomer.RecordFailure(fs.Method, fs.Key, elapsed.Nanoseconds()/int64(time.Millisecond), msg)
 				}
 				//保存数据
