@@ -49,6 +49,7 @@ type FuncSet struct {
 	Method      string            `json:"method"`
 	Body        string            `json:"body"`
 	Url         string            `json:"url"`
+	Loop        int               `json:"loop"` //循环次数
 	Header      map[string]string `json:"header"`
 	Probability int               `json:"probability"`
 	Validator   string            `json:"validator"`

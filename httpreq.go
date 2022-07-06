@@ -46,15 +46,22 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 
 	action := func(ctx *boomer.RunContext) {
 		// log.Println("@genReqAction run ID=", ctx.ID)
+
+		var loopNum = fs.Loop
+		if loopNum <= 0 {
+			loopNum = 1
+		}
+		ctx.TaskLoop = ctx.TaskLoopID < loopNum //是否循环执行下去
+
+		var debug = fs.RScript.Debug || fs.Debug
+
 		var url string
 		var _body string
 		var headers map[string]string
-		var debug = fs.RScript.Debug || fs.Debug
+
 		fs.RScript.PreParsed = false
 		runVariables := fs.RScript.genVariables(ctx)
 		runVariables.MergedVariables["ctx"] = ctx
-		//running context
-		// runVariables.MergedVariables["ctx"]=ctx
 
 		if !fs.assertConditionTrue(runVariables.MergedVariables) {
 			if debug {
@@ -226,7 +233,8 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 			response.Body.Close()
 
 		}
-	}
+
+	} //
 	return action
 }
 
