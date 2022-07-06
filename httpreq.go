@@ -51,6 +51,7 @@ func genReqAction(fs FuncSet) func(*boomer.RunContext) {
 		if loopNum <= 0 {
 			loopNum = 1
 		}
+
 		ctx.TaskLoop = ctx.TaskLoopID < loopNum //是否循环执行下去
 
 		var debug = fs.RScript.Debug || fs.Debug
