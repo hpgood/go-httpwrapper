@@ -12,18 +12,24 @@ import (
 )
 
 var TemplateFunc = map[string]interface{}{
-	"getRandomId": getRandomId,
-	"getSid":      getSid,
-	"toFloat64":   cast.ToFloat64,
-	"toString":    cast.ToString,
-	"mapValue":    MapValue,
-	"storeValue":  StoreValue,
-	"sv":          StoreValue,
-	"gson":        Gson,
-	"gsonArray":   GsonStringArr,
-	"joins":       JoinS,
-	"join":        Join,
-	"sleep":       Sleep,
+	"getRandomId":     getRandomId,
+	"getSid":          getSid,
+	"toFloat64":       cast.ToFloat64,
+	"toString":        cast.ToString,
+	"mapValue":        MapValue,
+	"storeValue":      StoreValue,
+	"sv":              StoreValue,
+	"StoreIntValue":   StoreIntValue,
+	"sint":            StoreIntValue,
+	"StoreBoolValue":  StoreBoolValue,
+	"sbool":           StoreBoolValue,
+	"StoreBoolString": StoreBoolString,
+	"sbools":          StoreBoolString,
+	"gson":            Gson,
+	"gsonArray":       GsonStringArr,
+	"joins":           JoinS,
+	"join":            Join,
+	"sleep":           Sleep,
 }
 
 func Sleep(n int) string {
@@ -63,6 +69,41 @@ func StoreValue(ctx *boomer.RunContext, key string) string {
 		return v
 	}
 	return ""
+}
+
+// StoreIntValue
+func StoreIntValue(ctx *boomer.RunContext, key string) int {
+	if ctx == nil {
+		return 0
+	}
+	if v, ok := ctx.IntStore[key]; ok {
+		return v
+	}
+	return 0
+}
+
+// StoreBoolValue
+func StoreBoolValue(ctx *boomer.RunContext, key string) bool {
+	if ctx == nil {
+		return false
+	}
+	if v, ok := ctx.BoolStore[key]; ok {
+		return v
+	}
+	return false
+}
+
+// StoreBoolString
+func StoreBoolString(ctx *boomer.RunContext, key string) string {
+	if ctx == nil {
+		return "false"
+	}
+	if v, ok := ctx.BoolStore[key]; ok {
+		if v {
+			return "true"
+		}
+	}
+	return "false"
 }
 
 // MapValue
