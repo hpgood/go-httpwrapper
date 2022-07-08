@@ -203,6 +203,14 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 	if strings.Contains(parsedBody, NoValue) {
 		fs.Parsed.Body.OriWithRunningVar = true
 	}
+
+	if hasVar(fs.Body) {
+		fs.Parsed.Body.OriWithRunningVar = true
+	}
+	if hasVar(fs.Url) {
+		fs.Parsed.Url.OriWithRunningVar = true
+	}
+
 	parsedBody = fs.getBody(rs.RunningVariables)
 	if strings.Contains(parsedBody, NoValue) {
 		fs.Parsed.Body.OriWithInitVar = true
@@ -210,6 +218,9 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 	parsedHeader := fs.getHeadersWithWarn(rs.InitVariables, false)
 	for _, v := range parsedHeader {
 		if strings.Contains(v, NoValue) {
+			fs.Parsed.Header.OriWithRunningVar = true
+		}
+		if hasVar(v) {
 			fs.Parsed.Header.OriWithRunningVar = true
 		}
 	}
@@ -220,6 +231,14 @@ func (fs *FuncSet) parseVars(rs RunScript) {
 		}
 	}
 
+}
+
+//是否有变量
+func hasVar(content string) bool {
+	if len(content) < 4 {
+		return false
+	}
+	return strings.Contains(content, "{{") && strings.Contains(content, "}}")
 }
 
 func (fs *FuncSet) getURL(v Variable) string {
